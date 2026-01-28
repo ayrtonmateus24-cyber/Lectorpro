@@ -17,457 +17,419 @@
         
         .timer-text { font-variant-numeric: tabular-nums; }
         
-        @keyframes bounce-subtle {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
+        @keyframes level-up {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); filter: brightness(1.2); }
+            100% { transform: scale(1); }
         }
-        .animate-bounce-subtle { animation: bounce-subtle 2s infinite ease-in-out; }
+        .animate-level-up { animation: level-up 0.6s ease-in-out; }
 
-        @keyframes success-pulse {
-            0% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.4); }
-            70% { box-shadow: 0 0 0 15px rgba(249, 115, 22, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0); }
+        .xp-bar-shine {
+            position: relative;
+            overflow: hidden;
         }
-        .pulse-orange { animation: success-pulse 1s ease-out; }
-        .pulse-green { animation: success-pulse 1s ease-out; box-shadow: 0 0 0 15px rgba(34, 197, 94, 0); }
+        .xp-bar-shine::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -100%; width: 100%; height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.5s;
+        }
+        .xp-bar-shine:hover::after { left: 100%; }
 
-        .toast-enter { transform: translateX(100%); opacity: 0; }
-        .toast-active { transform: translateX(0); opacity: 1; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-
-        input::-webkit-outer-spin-button,
-        input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-        
-        .mode-tab-active { @apply bg-white text-stone-900 shadow-sm; }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .modal-backdrop { background-color: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
     </style>
 </head>
-<body class="bg-[#FDFCF8] text-[#2C3E50] selection:bg-orange-100 overflow-x-hidden">
+<body class="bg-[#FDFCF8] text-[#2C3E50] selection:bg-indigo-100 overflow-x-hidden">
 
-    <!-- Container de Toasts -->
-    <div id="toast-container" class="fixed bottom-8 right-8 z-[100] flex flex-col gap-3"></div>
+    <!-- Toasts e Celebrações -->
+    <div id="toast-container" class="fixed bottom-8 right-8 z-[100] flex flex-col gap-3 pointer-events-none"></div>
 
-    <!-- Header / Barra de Progresso Superior -->
-    <nav class="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-stone-200 z-50">
-        <div class="max-w-5xl mx-auto h-1.5 w-full bg-stone-100 overflow-hidden">
-            <div id="progress-bar" class="h-full bg-gradient-to-r from-orange-400 to-orange-600 transition-all duration-1000 ease-out w-0 shadow-[0_0_10px_rgba(249,115,22,0.5)]"></div>
-        </div>
-        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
-            <div class="flex items-center gap-2 group cursor-default">
-                <div id="header-logo-bg" class="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center text-white shadow-lg transition-transform group-hover:rotate-12">
-                    <i data-lucide="book-open" class="w-5 h-5"></i>
+    <!-- Modal Nova Leitura -->
+    <div id="new-reading-modal" class="fixed inset-0 z-[200] modal-backdrop flex items-center justify-center hidden opacity-0 transition-opacity duration-300">
+        <div class="bg-white rounded-[2.5rem] p-8 md:p-10 max-w-md w-full mx-4 shadow-2xl transform scale-95 transition-transform duration-300" id="modal-content">
+            <h2 class="text-2xl font-black text-stone-800 mb-2 tracking-tighter">Nova Jornada</h2>
+            <p class="text-sm text-stone-500 mb-6">Guarde o seu progresso atual e inicie um novo desafio.</p>
+            <div class="space-y-4">
+                <input type="text" id="new-book-title" placeholder="Título do Livro" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-indigo-300 outline-none transition-all font-semibold">
+                <input type="number" id="new-book-pages" value="100" class="w-full px-5 py-4 bg-stone-50 rounded-2xl border-2 border-stone-100 focus:border-indigo-300 outline-none font-bold">
+                <div class="flex gap-3 pt-4">
+                    <button onclick="closeModal()" class="flex-1 py-4 font-bold text-stone-400">Cancelar</button>
+                    <button onclick="confirmNewReading()" class="flex-1 py-4 bg-indigo-600 text-white rounded-2xl font-black shadow-lg shadow-indigo-200">Começar</button>
                 </div>
-                <span class="font-bold tracking-tight text-sm text-stone-800 uppercase">Lector <span id="header-pro-tag" class="text-orange-500">Pro</span></span>
             </div>
+        </div>
+    </div>
+
+    <!-- Navegação Superior -->
+    <nav class="fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-stone-200 z-50">
+        <!-- Progress Bar do Livro -->
+        <div class="max-w-5xl mx-auto h-1 w-full bg-stone-100">
+            <div id="progress-bar" class="h-full bg-orange-400 transition-all duration-700 w-0"></div>
+        </div>
+        <!-- Progress Bar do XP (Nível) -->
+        <div id="xp-bar-container" class="max-w-5xl mx-auto h-1 w-full bg-indigo-50 xp-bar-shine">
+            <div id="xp-progress" class="h-full bg-indigo-500 transition-all duration-1000 w-0"></div>
+        </div>
+
+        <div class="max-w-5xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3 group">
+                <div id="level-badge" class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg transition-all duration-500">
+                    <span id="level-number" class="font-black text-sm">1</span>
+                </div>
+                <div>
+                    <span id="rank-title" class="block text-[10px] font-black uppercase text-indigo-500 tracking-widest leading-none mb-1">Iniciante</span>
+                    <span id="current-book-title-nav" class="block text-sm font-bold text-stone-800 truncate max-w-[150px] md:max-w-xs leading-none">Lector Pro</span>
+                </div>
+            </div>
+            
             <div class="flex items-center gap-4">
-                <div class="hidden lg:block text-right">
-                    <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest leading-none">Progresso</p>
-                    <p id="progress-text" class="text-xs font-bold text-stone-600">0% concluído</p>
+                <div class="hidden md:block text-right">
+                    <p class="text-[9px] font-black text-stone-400 uppercase tracking-widest leading-none">XP para Próximo Nível</p>
+                    <p id="xp-text" class="text-[11px] font-bold text-indigo-600">0 / 500 XP</p>
                 </div>
-                
-                <div id="milestone-indicator" class="hidden md:flex items-center gap-2 bg-green-50 px-3 py-1 rounded-full border border-green-100 animate-bounce-subtle">
-                    <i data-lucide="sparkles" class="w-3 h-3 text-green-600"></i>
-                    <span class="text-[10px] font-bold text-green-700 uppercase tracking-tight">Ritmo Incrível!</span>
-                </div>
-                <div id="header-page-badge" class="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100 shadow-sm">
-                    Pág. <span id="current-page-display">0</span> / <span id="total-pages-display">100</span>
-                </div>
+                <div class="h-8 w-px bg-stone-100"></div>
+                <button onclick="toggleLibrary()" class="relative p-2 text-stone-400 hover:text-indigo-600 transition-colors">
+                    <i data-lucide="library" class="w-6 h-6"></i>
+                </button>
             </div>
         </div>
     </nav>
 
-    <main class="max-w-5xl mx-auto px-6 pt-32 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12">
+    <main class="max-w-5xl mx-auto px-6 pt-36 pb-20 grid grid-cols-1 lg:grid-cols-12 gap-12">
         
-        <!-- Coluna Esquerda -->
+        <!-- App Central -->
         <section class="lg:col-span-7 space-y-8">
-            <div id="timer-card" class="bg-white rounded-[2.5rem] p-8 md:p-10 border border-stone-200 shadow-xl shadow-stone-200/50 text-center space-y-8 relative overflow-hidden transition-all duration-500">
-                
-                <!-- Seletor de Modos (Tabs) -->
+            <div id="timer-card" class="bg-white rounded-[2.5rem] p-10 border border-stone-200 shadow-xl shadow-stone-200/50 text-center space-y-8 relative overflow-hidden transition-all duration-500">
+                <!-- Seletor Pomodoro -->
                 <div class="flex p-1.5 bg-stone-100 rounded-2xl max-w-sm mx-auto relative z-10">
                     <button onclick="changeMode('focus')" id="tab-focus" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all mode-tab-active">Foco</button>
-                    <button onclick="changeMode('short')" id="tab-short" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-stone-500 hover:text-stone-700">Curto</button>
-                    <button onclick="changeMode('long')" id="tab-long" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-stone-500 hover:text-stone-700">Longo</button>
+                    <button onclick="changeMode('short')" id="tab-short" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-stone-500">Pausa</button>
+                    <button onclick="changeMode('long')" id="tab-long" class="flex-1 py-2 text-xs font-bold rounded-xl transition-all text-stone-500">Longo</button>
                 </div>
 
-                <header>
-                    <div id="timer-display" class="timer-text text-[90px] md:text-[120px] font-extralight leading-none tracking-tighter text-stone-900 mb-6 drop-shadow-sm">
-                        25:00
-                    </div>
-                    
-                    <div id="session-delta-badge" class="invisible inline-flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-full border border-green-100 text-sm font-bold shadow-sm transition-all scale-90">
-                        <i data-lucide="award" class="w-4 h-4"></i>
-                        <span id="delta-text">+0 páginas lidas agora</span>
-                    </div>
-                </header>
-
+                <div id="timer-display" class="timer-text text-[90px] md:text-[110px] font-extralight tracking-tighter text-stone-900 drop-shadow-sm">25:00</div>
+                
                 <div class="flex justify-center gap-6 relative z-10">
-                    <button id="btn-toggle" class="group flex items-center gap-3 px-10 py-5 rounded-2xl font-black text-lg bg-orange-500 text-white hover:bg-orange-600 shadow-xl shadow-orange-200 transition-all active:scale-95 focus:ring-4 focus:ring-orange-100 outline-none">
+                    <button id="btn-toggle" class="group flex items-center gap-3 px-10 py-5 rounded-2xl font-black text-lg bg-indigo-600 text-white hover:bg-indigo-700 shadow-xl shadow-indigo-100 transition-all active:scale-95">
                         <i id="toggle-icon" data-lucide="play" class="w-6 h-6 fill-current"></i>
                         <span id="toggle-label">FOCO TOTAL</span>
                     </button>
-                    <button id="btn-reset" class="p-5 rounded-2xl border-2 border-stone-100 text-stone-300 hover:text-stone-600 hover:border-stone-200 hover:bg-stone-50 transition-all active:scale-90 focus:ring-4 focus:ring-stone-100 outline-none">
-                        <i data-lucide="rotate-ccw" class="w-6 h-6"></i>
-                    </button>
+                    <button id="btn-reset" class="p-5 rounded-2xl border-2 border-stone-100 text-stone-300 hover:text-stone-600 transition-all"><i data-lucide="rotate-ccw" class="w-6 h-6"></i></button>
                 </div>
 
-                <div class="pt-8 border-t border-stone-100 grid grid-cols-3 items-center">
-                    <div class="space-y-1">
+                <div class="pt-8 border-t border-stone-100 grid grid-cols-3">
+                    <div class="text-center">
                         <p id="stat-sessions" class="text-2xl font-bold text-stone-800">0</p>
-                        <p class="text-[10px] font-bold text-stone-400 uppercase tracking-widest">Sessões</p>
+                        <p class="text-[9px] font-black uppercase text-stone-400">Sessões</p>
                     </div>
-                    <div class="flex justify-center">
-                        <div class="w-px h-10 bg-stone-100"></div>
-                    </div>
-                    <div id="stat-pages-container" class="space-y-1 text-orange-500 transition-all duration-300">
-                        <p id="stat-pages" class="text-2xl font-bold">0</p>
-                        <p class="text-[10px] font-bold uppercase tracking-widest">Páginas Agora</p>
+                    <div class="flex justify-center items-center"><div class="w-px h-10 bg-stone-100"></div></div>
+                    <div class="text-center">
+                        <p id="stat-xp-today" class="text-2xl font-bold text-indigo-500">+0</p>
+                        <p class="text-[9px] font-black uppercase text-indigo-400">XP Ganhos</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Configurações de Tempo e Meta -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <!-- Ajuste de Tempos -->
-                <div class="bg-white rounded-3xl p-6 border border-stone-200 space-y-4 shadow-sm">
-                    <h3 class="font-bold text-stone-800 text-xs uppercase tracking-widest flex items-center gap-2">
-                        <i data-lucide="settings-2" class="w-4 h-4"></i> Ajustar Tempos (min)
-                    </h3>
-                    <div class="grid grid-cols-3 gap-3">
-                        <div class="space-y-1">
-                            <label class="text-[9px] font-bold text-stone-400 uppercase block ml-1">Foco</label>
-                            <input type="number" id="config-focus" value="25" class="w-full px-3 py-2 bg-stone-50 rounded-xl border border-stone-100 text-center font-bold text-sm focus:border-orange-200 outline-none">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[9px] font-bold text-stone-400 uppercase block ml-1">Curto</label>
-                            <input type="number" id="config-short" value="5" class="w-full px-3 py-2 bg-stone-50 rounded-xl border border-stone-100 text-center font-bold text-sm focus:border-green-200 outline-none">
-                        </div>
-                        <div class="space-y-1">
-                            <label class="text-[9px] font-bold text-stone-400 uppercase block ml-1">Longo</label>
-                            <input type="number" id="config-long" value="15" class="w-full px-3 py-2 bg-stone-50 rounded-xl border border-stone-100 text-center font-bold text-sm focus:border-blue-200 outline-none">
-                        </div>
+                <div class="bg-white rounded-3xl p-6 border border-stone-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-bold text-xs uppercase tracking-widest text-stone-500">Controlos</h3>
+                        <button onclick="openModal()" class="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-1 bg-indigo-50 px-2 py-1 rounded-lg">Novo Livro <i data-lucide="plus" class="w-3 h-3"></i></button>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="number" id="input-current" class="w-1/2 p-3 bg-stone-50 rounded-xl border-2 border-transparent focus:border-indigo-100 font-bold text-center outline-none" title="Página Atual">
+                        <input type="number" id="input-total" class="w-1/2 p-3 bg-stone-50 rounded-xl border-2 border-transparent font-bold text-center outline-none opacity-50" readonly>
                     </div>
                 </div>
-
-                <!-- Atualizar Progresso -->
-                <div id="meta-card" class="bg-white rounded-3xl p-6 border border-stone-200 flex items-center justify-between gap-4 shadow-sm">
-                    <div class="space-y-1">
-                        <h3 class="font-bold text-stone-800 text-xs uppercase tracking-widest">Página Atual</h3>
-                        <div class="flex items-center gap-2">
-                             <input type="number" id="input-current" min="0" value="0" class="w-16 p-2 bg-stone-50 rounded-lg border border-stone-100 font-bold text-center outline-none focus:border-orange-200">
-                             <span class="text-stone-300">/</span>
-                             <input type="number" id="input-total" min="1" value="100" class="w-16 p-2 bg-stone-50 rounded-lg border border-stone-100 font-bold text-center outline-none">
-                        </div>
-                    </div>
-                    <div class="w-10 h-10 bg-stone-50 rounded-xl flex items-center justify-center text-stone-400">
-                        <i data-lucide="book-open-check" class="w-5 h-5"></i>
-                    </div>
+                <div class="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl shadow-indigo-100 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-125 transition-transform"><i data-lucide="zap" class="w-20 h-20"></i></div>
+                    <h4 class="text-[10px] font-black uppercase opacity-60 tracking-[0.2em] mb-2">Multiplicador</h4>
+                    <p class="text-2xl font-black">X1.0</p>
+                    <p class="text-[10px] font-bold mt-2 opacity-80">Mantenha a sequência diária!</p>
                 </div>
             </div>
         </section>
 
-        <!-- Coluna Direita -->
+        <!-- Insights e Gamificação -->
         <section class="lg:col-span-5 space-y-6">
-            <div class="sticky top-28 space-y-6">
-                <div id="insight-card" class="bg-white rounded-[2rem] border border-stone-200 shadow-sm overflow-hidden flex flex-col transition-all">
-                    <div class="p-6 border-b border-stone-100 bg-stone-50/50 flex items-center justify-between shrink-0">
-                        <h3 class="font-bold flex items-center gap-2 text-stone-700">
-                            <i data-lucide="bookmark" class="w-4 h-4 text-orange-500"></i>
-                            Insight Log
-                        </h3>
-                        <span id="note-count" class="text-[10px] font-black text-white bg-stone-800 px-2.5 py-1 rounded-full shadow-md transition-transform duration-300">0</span>
-                    </div>
-                    
-                    <div class="p-6">
-                        <div class="relative mb-8">
-                            <textarea id="note-input" placeholder="Que pensamento brilhante tiveste?" class="w-full p-5 rounded-[1.5rem] bg-stone-50 border-2 border-transparent focus:border-orange-200 focus:bg-white outline-none transition-all text-sm min-h-[120px] resize-none leading-relaxed custom-scrollbar"></textarea>
-                            <button id="btn-add-note" class="absolute bottom-4 right-4 p-3 bg-stone-900 text-white rounded-xl hover:bg-orange-500 transition-all shadow-lg active:scale-90 focus:ring-4 focus:ring-orange-100">
-                                <i data-lucide="send" class="w-5 h-5"></i>
-                            </button>
-                        </div>
-
-                        <div id="notes-container" class="space-y-4 max-h-[340px] overflow-y-auto pr-2 custom-scrollbar">
-                            <div class="text-center py-12 text-stone-300">
-                                <i data-lucide="edit-3" class="w-8 h-8 mx-auto mb-3 opacity-10"></i>
-                                <p class="text-xs font-medium italic">Seus insights aparecerão aqui.</p>
-                            </div>
-                        </div>
+            <div class="sticky top-32 space-y-6">
+                <!-- Biblioteca (Toggle) -->
+                <div id="library-panel" class="hidden animate-in fade-in slide-in-from-right-4 duration-300">
+                    <div class="bg-stone-900 text-white rounded-[2.5rem] p-6 shadow-2xl">
+                        <h3 class="text-xs font-black uppercase tracking-widest text-indigo-400 mb-4">Coleção de Conhecimento</h3>
+                        <div id="library-list" class="space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar"></div>
                     </div>
                 </div>
 
-                <div class="p-5 bg-gradient-to-br from-stone-900 to-stone-800 rounded-[1.5rem] text-white flex gap-4 items-center shadow-2xl relative overflow-hidden group">
-                    <div class="absolute inset-0 bg-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-                    <div class="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0 border border-white/5">
-                        <i data-lucide="zap" class="w-5 h-5 text-orange-400"></i>
+                <!-- Painel de Notas -->
+                <div class="bg-white rounded-[2.5rem] border border-stone-200 shadow-sm overflow-hidden flex flex-col">
+                    <div class="p-6 border-b border-stone-100 bg-stone-50/50 flex items-center justify-between">
+                        <h3 class="font-bold flex items-center gap-2 text-stone-700 tracking-tight"><i data-lucide="feather" class="w-4 h-4 text-indigo-500"></i> Notas (+50 XP)</h3>
+                        <span id="note-count" class="text-[10px] font-black text-white bg-indigo-600 px-2.5 py-1 rounded-full">0</span>
                     </div>
-                    <p class="text-[11px] leading-snug text-stone-300 font-medium relative">
-                        DICA: O ciclo de descanso longo ajuda a evitar o <span class="text-orange-400 font-bold">Burnout Mental</span>.
-                    </p>
+                    <div class="p-6">
+                        <div class="relative mb-6">
+                            <textarea id="note-input" placeholder="O que aprendeste agora?" class="w-full p-4 rounded-[1.5rem] bg-stone-50 border-2 border-transparent focus:border-indigo-100 outline-none text-sm min-h-[100px] resize-none"></textarea>
+                            <button id="btn-add-note" class="absolute bottom-3 right-3 p-3 bg-stone-900 text-white rounded-xl hover:bg-indigo-600 transition-all"><i data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
+                        <div id="notes-container" class="space-y-3 max-h-[250px] overflow-y-auto pr-2 custom-scrollbar"></div>
+                    </div>
                 </div>
             </div>
         </section>
     </main>
 
     <script>
-        const state = {
-            mode: 'focus', // 'focus', 'short', 'long'
-            durations: {
-                focus: 25,
-                short: 5,
-                long: 15
+        // --- Estado Centralizado com Gamificação ---
+        let state = {
+            totalXP: 0,
+            level: 1,
+            xpToday: 0,
+            currentBook: {
+                title: "O Alquimista",
+                currentPage: 0,
+                totalPages: 100,
+                notes: [],
+                sessions: 0,
             },
+            library: [],
+            durations: { focus: 25, short: 5, long: 15 },
             timeLeft: 25 * 60,
             isActive: false,
-            sessionCount: 0,
-            currentPage: 0,
-            totalPages: 100,
-            startPage: 0,
-            notes: [],
-            milestones: {
-                firstPage: false,
-                firstInsight: false,
-                fivePages: false
-            }
+            mode: 'focus'
         };
+
+        const ranks = [
+            { lv: 1, title: "Iniciante", color: "#4f46e5" },
+            { lv: 5, title: "Aprendiz Curioso", color: "#6366f1" },
+            { lv: 10, title: "Explorador Literário", color: "#8b5cf6" },
+            { lv: 20, title: "Sábio da Prosa", color: "#a855f7" },
+            { lv: 35, title: "Mestre da Sabedoria", color: "#d946ef" },
+            { lv: 50, title: "Lenda do Lector", color: "#f97316" }
+        ];
 
         let timerInterval = null;
 
         const dom = {
             timer: document.getElementById('timer-display'),
-            btnToggle: document.getElementById('btn-toggle'),
-            toggleIcon: document.getElementById('toggle-icon'),
-            toggleLabel: document.getElementById('toggle-label'),
-            btnReset: document.getElementById('btn-reset'),
+            progressBar: document.getElementById('progress-bar'),
+            xpProgress: document.getElementById('xp-progress'),
+            levelNumber: document.getElementById('level-number'),
+            rankTitle: document.getElementById('rank-title'),
+            xpText: document.getElementById('xp-text'),
+            bookNav: document.getElementById('current-book-title-nav'),
             inputCurrent: document.getElementById('input-current'),
             inputTotal: document.getElementById('input-total'),
-            progressBar: document.getElementById('progress-bar'),
-            progressText: document.getElementById('progress-text'),
-            curPageDisp: document.getElementById('current-page-display'),
-            totPageDisp: document.getElementById('total-pages-display'),
-            statSessions: document.getElementById('stat-sessions'),
-            statPages: document.getElementById('stat-pages'),
-            statPagesContainer: document.getElementById('stat-pages-container'),
-            deltaBadge: document.getElementById('session-delta-badge'),
-            deltaText: document.getElementById('delta-text'),
-            noteInput: document.getElementById('note-input'),
-            btnAddNote: document.getElementById('btn-add-note'),
-            notesContainer: document.getElementById('notes-container'),
-            noteCount: document.getElementById('note-count'),
-            toastContainer: document.getElementById('toast-container'),
-            milestoneIndicator: document.getElementById('milestone-indicator'),
-            timerCard: document.getElementById('timer-card'),
-            // Config inputs
-            configFocus: document.getElementById('config-focus'),
-            configShort: document.getElementById('config-short'),
-            configLong: document.getElementById('config-long'),
-            // UI Header colors
-            headerProTag: document.getElementById('header-pro-tag'),
-            headerLogoBg: document.getElementById('header-logo-bg'),
-            headerPageBadge: document.getElementById('header-page-badge')
+            levelBadge: document.getElementById('level-badge'),
+            statXp: document.getElementById('stat-xp-today'),
+            noteCount: document.getElementById('note-count')
         };
 
-        function triggerConfetti(type = 'basic') {
-            if (typeof confetti !== 'function') return;
-            const colors = state.mode === 'focus' ? ['#f97316', '#22c55e', '#ffffff'] : ['#22c55e', '#3b82f6', '#ffffff'];
-            confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 }, colors });
+        // --- Sistema de XP ---
+        function addXP(amount, reason = "Ação") {
+            state.totalXP += amount;
+            state.xpToday += amount;
+            
+            checkLevelUp();
+            saveToCache();
+            updateAllUI();
+            
+            showToast(`+${amount} XP`, reason, "sparkles");
         }
 
-        function showToast(title, message, icon = 'award') {
-            const toast = document.createElement('div');
-            toast.className = 'toast-enter flex items-center gap-4 bg-white border border-stone-200 p-4 rounded-2xl shadow-2xl min-w-[300px] pointer-events-auto';
-            const colorClass = state.mode === 'focus' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600';
-            toast.innerHTML = `
-                <div class="w-10 h-10 ${colorClass} rounded-xl flex items-center justify-center shrink-0">
-                    <i data-lucide="${icon}" class="w-6 h-6"></i>
-                </div>
-                <div>
-                    <h4 class="font-bold text-stone-800 text-sm">${title}</h4>
-                    <p class="text-xs text-stone-500">${message}</p>
-                </div>
-            `;
-            dom.toastContainer.appendChild(toast);
-            lucide.createIcons();
-            setTimeout(() => toast.classList.add('toast-active'), 100);
-            setTimeout(() => {
-                toast.classList.remove('toast-active');
-                setTimeout(() => toast.remove(), 400);
-            }, 5000);
+        function checkLevelUp() {
+            const nextLevelXP = state.level * 500;
+            if (state.totalXP >= nextLevelXP) {
+                state.level++;
+                triggerCelebration('levelup');
+                showToast(`Nível ${state.level}!`, "Subiste de patente!", "award");
+                dom.levelBadge.classList.add('animate-level-up');
+                setTimeout(() => dom.levelBadge.classList.remove('animate-level-up'), 600);
+            }
         }
 
-        function changeMode(newMode) {
+        function getRankInfo() {
+            let current = ranks[0];
+            for (let r of ranks) {
+                if (state.level >= r.lv) current = r;
+            }
+            return current;
+        }
+
+        // --- Cache ---
+        function saveToCache() {
+            localStorage.setItem('lector_gamified_data', JSON.stringify(state));
+        }
+
+        function loadFromCache() {
+            const saved = localStorage.getItem('lector_gamified_data');
+            if (saved) state = { ...state, ...JSON.parse(saved) };
             state.isActive = false;
-            clearInterval(timerInterval);
-            state.mode = newMode;
-            state.timeLeft = state.durations[newMode] * 60;
-            
-            // UI Updates for Tabs
-            ['focus', 'short', 'long'].forEach(m => {
-                const tab = document.getElementById(`tab-${m}`);
-                tab.className = `flex-1 py-2 text-xs font-bold rounded-xl transition-all ${m === newMode ? 'mode-tab-active' : 'text-stone-500 hover:text-stone-700'}`;
-            });
-
-            // UI Theme colors
-            const colors = {
-                focus: { main: 'bg-orange-500', hover: 'hover:bg-orange-600', ring: 'focus:ring-orange-100', text: 'text-orange-500', bar: 'from-orange-400 to-orange-600' },
-                short: { main: 'bg-green-500', hover: 'hover:bg-green-600', ring: 'focus:ring-green-100', text: 'text-green-500', bar: 'from-green-400 to-green-600' },
-                long: { main: 'bg-blue-500', hover: 'hover:bg-blue-600', ring: 'focus:ring-blue-100', text: 'text-blue-500', bar: 'from-blue-400 to-blue-600' }
-            };
-
-            const c = colors[newMode];
-            dom.btnToggle.className = `group flex items-center gap-3 px-10 py-5 rounded-2xl font-black text-lg ${c.main} ${c.hover} text-white shadow-xl shadow-stone-200 transition-all active:scale-95 ${c.ring} outline-none`;
-            dom.progressBar.className = `h-full bg-gradient-to-r ${c.bar} transition-all duration-1000 ease-out w-0`;
-            dom.toggleLabel.innerText = newMode === 'focus' ? 'FOCO TOTAL' : 'RELAXAR';
-            dom.toggleIcon.setAttribute('data-lucide', 'play');
-
-            updateTimerDisplay();
-            updateContentUI();
-            lucide.createIcons();
         }
 
-        function updateTimerDisplay() {
-            const mins = Math.floor(state.timeLeft / 60);
-            const secs = state.timeLeft % 60;
-            if(dom.timer) dom.timer.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-        }
-
-        function updateContentUI(isNewPage = false) {
-            if (state.currentPage > state.totalPages) state.currentPage = state.totalPages;
+        // --- UI Updates ---
+        function updateAllUI() {
+            const bookPercent = (state.currentBook.currentPage / state.currentBook.totalPages) * 100;
+            dom.progressBar.style.width = `${Math.min(bookPercent, 100)}%`;
             
-            const percentage = Math.min(Math.round((state.currentPage / state.totalPages) * 100), 100);
+            const nextLevelTarget = state.level * 500;
+            const currentLevelStart = (state.level - 1) * 500;
+            const xpInCurrentLevel = state.totalXP - currentLevelStart;
+            const xpPercent = (xpInCurrentLevel / 500) * 100;
             
-            if(dom.progressBar) dom.progressBar.style.width = `${percentage}%`;
-            if(dom.progressText) dom.progressText.innerText = `${percentage}% concluído`;
-            if(dom.curPageDisp) dom.curPageDisp.innerText = state.currentPage;
-            if(dom.totPageDisp) dom.totPageDisp.innerText = state.totalPages;
-            if(dom.statSessions) dom.statSessions.innerText = state.sessionCount;
+            dom.xpProgress.style.width = `${Math.min(xpPercent, 100)}%`;
+            dom.xpText.innerText = `${state.totalXP} / ${nextLevelTarget} XP`;
+            dom.levelNumber.innerText = state.level;
             
-            const delta = state.mode === 'focus' ? Math.max(state.currentPage - state.startPage, 0) : 0;
-            if(dom.statPages) dom.statPages.innerText = delta;
+            const rank = getRankInfo();
+            dom.rankTitle.innerText = rank.title;
+            dom.levelBadge.style.backgroundColor = rank.color;
+            dom.rankTitle.style.color = rank.color;
 
-            if (delta > 0 && state.mode === 'focus') {
-                if(dom.deltaBadge) dom.deltaBadge.classList.remove('invisible', 'opacity-0', 'scale-90');
-                if(dom.deltaBadge) dom.deltaBadge.classList.add('visible', 'opacity-100', 'scale-100');
-                if(dom.deltaText) dom.deltaText.innerText = `+${delta} ${delta === 1 ? 'página lida' : 'páginas lidas'} agora`;
-            } else {
-                if(dom.deltaBadge) dom.deltaBadge.classList.add('invisible', 'opacity-0', 'scale-90');
-            }
+            dom.bookNav.innerText = state.currentBook.title;
+            dom.inputCurrent.value = state.currentBook.currentPage;
+            dom.inputTotal.value = state.currentBook.totalPages;
+            dom.statXp.innerText = `+${state.xpToday}`;
+            dom.noteCount.innerText = state.currentBook.notes.length;
 
-            if (isNewPage && dom.statPagesContainer) {
-                dom.statPagesContainer.classList.add('scale-110');
-                setTimeout(() => dom.statPagesContainer.classList.remove('scale-110'), 300);
-            }
-
-            if(dom.noteCount) dom.noteCount.innerText = state.notes.length;
             renderNotes();
+            updateTimerUI();
         }
 
         function renderNotes() {
-            if (!dom.notesContainer) return;
-            if (state.notes.length === 0) {
-                dom.notesContainer.innerHTML = `<div class="text-center py-12 text-stone-300 italic text-xs">Insights aparecerão aqui.</div>`;
-            } else {
-                dom.notesContainer.innerHTML = state.notes.map(note => `
-                    <div class="note-animation bg-stone-50 border border-stone-100 p-4 rounded-2xl relative mb-3">
-                        <div class="flex justify-between items-center mb-1">
-                            <span class="text-[9px] font-black text-orange-500 uppercase">Pág. ${note.page}</span>
-                            <span class="text-[9px] text-stone-400 font-medium">${note.time}</span>
-                        </div>
-                        <p class="text-sm text-stone-700 leading-tight">"${note.text}"</p>
+            const container = document.getElementById('notes-container');
+            if (state.currentBook.notes.length === 0) {
+                container.innerHTML = `<p class="text-[10px] text-stone-300 text-center py-6 italic">Sem notas ainda.</p>`;
+                return;
+            }
+            container.innerHTML = state.currentBook.notes.map(n => `
+                <div class="bg-stone-50 border border-stone-100 p-3 rounded-2xl animate-in slide-in-from-bottom-2">
+                    <div class="flex justify-between text-[8px] font-black text-indigo-400 mb-1">
+                        <span>Pág. ${n.page}</span><span>${n.time}</span>
                     </div>
-                `).join('');
+                    <p class="text-[11px] text-stone-700 leading-tight">"${n.text}"</p>
+                </div>
+            `).join('');
+        }
+
+        function showToast(title, msg, icon) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'flex items-center gap-3 bg-white border border-stone-200 p-3 rounded-2xl shadow-xl transition-all duration-400 opacity-0 translate-x-10';
+            toast.innerHTML = `<div class="p-2 bg-indigo-100 text-indigo-600 rounded-lg"><i data-lucide="${icon}" class="w-4 h-4"></i></div>
+                               <div><p class="text-xs font-black text-stone-800">${title}</p><p class="text-[10px] text-stone-400">${msg}</p></div>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => { toast.classList.replace('opacity-0', 'opacity-100'); toast.classList.replace('translate-x-10', 'translate-x-0'); }, 10);
+            setTimeout(() => { toast.classList.add('opacity-0'); setTimeout(() => toast.remove(), 400); }, 4000);
+        }
+
+        function triggerCelebration(type) {
+            if (type === 'levelup') {
+                confetti({ particleCount: 200, spread: 80, origin: { y: 0.6 }, colors: ['#6366f1', '#a855f7', '#ffffff'] });
             }
         }
 
-        function handleTimerComplete() {
-            state.isActive = false;
-            clearInterval(timerInterval);
-            
-            if (state.mode === 'focus') {
-                state.sessionCount++;
-                triggerConfetti();
-                showToast("Foco Concluído!", "Hora de um pequeno descanso.", "coffee");
-                // Sugere descanso curto ou longo
-                const nextMode = state.sessionCount % 4 === 0 ? 'long' : 'short';
-                setTimeout(() => changeMode(nextMode), 2000);
-            } else {
-                showToast("Descanso Terminado", "Pronto para voltar ao livro?", "book-open");
-                setTimeout(() => changeMode('focus'), 2000);
-            }
-            
-            updateContentUI();
+        // --- Handlers ---
+        function updateTimerUI() {
+            const mins = Math.floor(state.timeLeft / 60);
+            const secs = state.timeLeft % 60;
+            dom.timer.innerText = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         }
 
-        // --- Eventos ---
-        dom.btnToggle.addEventListener('click', () => {
+        document.getElementById('btn-toggle').addEventListener('click', () => {
             if (!state.isActive) {
                 state.isActive = true;
-                if(state.mode === 'focus') state.startPage = state.currentPage;
-                dom.btnToggle.classList.add('opacity-80');
-                dom.toggleLabel.innerText = 'PAUSAR';
-                dom.toggleIcon.setAttribute('data-lucide', 'pause');
-                
+                document.getElementById('toggle-label').innerText = 'PAUSAR';
                 timerInterval = setInterval(() => {
                     if (state.timeLeft > 0) {
                         state.timeLeft--;
-                        updateTimerDisplay();
+                        updateTimerUI();
                     } else {
-                        handleTimerComplete();
+                        clearInterval(timerInterval);
+                        state.isActive = false;
+                        if (state.mode === 'focus') {
+                            state.currentBook.sessions++;
+                            addXP(150, "Sessão Concluída");
+                        }
+                        state.timeLeft = state.durations.focus * 60;
+                        updateAllUI();
                     }
                 }, 1000);
             } else {
                 state.isActive = false;
                 clearInterval(timerInterval);
-                dom.btnToggle.classList.remove('opacity-80');
-                dom.toggleLabel.innerText = 'CONTINUAR';
-                dom.toggleIcon.setAttribute('data-lucide', 'play');
+                document.getElementById('toggle-label').innerText = 'CONTINUAR';
             }
-            lucide.createIcons();
-        });
-
-        dom.btnReset.addEventListener('click', () => {
-            state.isActive = false;
-            clearInterval(timerInterval);
-            state.timeLeft = state.durations[state.mode] * 60;
-            updateTimerDisplay();
-            updateContentUI();
-            lucide.createIcons();
-        });
-
-        // Config Inputs logic
-        [dom.configFocus, dom.configShort, dom.configLong].forEach(input => {
-            input.addEventListener('change', (e) => {
-                const mode = e.target.id.split('-')[1];
-                state.durations[mode] = parseInt(e.target.value) || 1;
-                if(state.mode === mode && !state.isActive) {
-                    state.timeLeft = state.durations[mode] * 60;
-                    updateTimerDisplay();
-                }
-            });
         });
 
         dom.inputCurrent.addEventListener('change', (e) => {
-            state.currentPage = parseInt(e.target.value) || 0;
-            updateContentUI(true);
+            const old = state.currentBook.currentPage;
+            const val = parseInt(e.target.value) || 0;
+            if (val > old) {
+                const diff = val - old;
+                addXP(diff * 10, "Páginas Lidas");
+            }
+            state.currentBook.currentPage = val;
+            saveToCache();
+            updateAllUI();
         });
 
-        dom.inputTotal.addEventListener('change', (e) => {
-            state.totalPages = parseInt(e.target.value) || 1;
-            updateContentUI();
+        document.getElementById('btn-add-note').addEventListener('click', () => {
+            const input = document.getElementById('note-input');
+            const val = input.value.trim();
+            if (!val) return;
+            state.currentBook.notes.unshift({ text: val, page: state.currentBook.currentPage, time: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) });
+            input.value = '';
+            addXP(50, "Novo Insight");
+            saveToCache();
+            updateAllUI();
         });
 
-        dom.btnAddNote.addEventListener('click', () => {
-            const text = dom.noteInput.value.trim();
-            if (!text) return;
-            state.notes.unshift({
-                id: Date.now(),
-                text: text,
-                page: state.currentPage,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        function changeMode(m) {
+            state.isActive = false;
+            clearInterval(timerInterval);
+            state.mode = m;
+            state.timeLeft = state.durations[m] * 60;
+            ['focus', 'short', 'long'].forEach(id => {
+                document.getElementById(`tab-${id}`).className = `flex-1 py-2 text-xs font-bold rounded-xl transition-all ${id === m ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`;
             });
-            dom.noteInput.value = '';
-            updateContentUI();
-        });
+            updateAllUI();
+        }
 
+        function openModal() { document.getElementById('new-reading-modal').classList.remove('hidden', 'opacity-0'); }
+        function closeModal() { document.getElementById('new-reading-modal').classList.add('hidden', 'opacity-0'); }
+        function confirmNewReading() {
+            const title = document.getElementById('new-book-title').value.trim() || "Nova Leitura";
+            const pages = parseInt(document.getElementById('new-book-pages').value) || 100;
+            if (state.currentBook.currentPage > 0) state.library.unshift({...state.currentBook, archivedAt: new Date().toLocaleDateString()});
+            state.currentBook = { title, currentPage: 0, totalPages: pages, notes: [], sessions: 0 };
+            saveToCache();
+            updateAllUI();
+            closeModal();
+            showToast("Jornada Iniciada", title, "book");
+        }
+
+        function toggleLibrary() {
+            const p = document.getElementById('library-panel');
+            p.classList.toggle('hidden');
+            if (!p.classList.contains('hidden')) {
+                const list = document.getElementById('library-list');
+                list.innerHTML = state.library.length ? state.library.map(b => `
+                    <div class="bg-white/5 p-3 rounded-xl border border-white/10 mb-2">
+                        <p class="text-xs font-bold">${b.title}</p>
+                        <p class="text-[9px] text-stone-500">${b.notes.length} notas • Finalizado em ${b.archivedAt}</p>
+                    </div>
+                `).join('') : `<p class="text-[10px] text-center opacity-50">Biblioteca vazia.</p>`;
+            }
+        }
+
+        // Init
+        loadFromCache();
+        updateAllUI();
         lucide.createIcons();
-        updateTimerDisplay();
-        updateContentUI();
     </script>
 </body>
 </html>
